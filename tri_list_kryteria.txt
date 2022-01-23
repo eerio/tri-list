@@ -1,0 +1,27 @@
+== Cele dydaktyczne ==
+
+Studenci powinni:
+- poznać podstawowe zasady programowania funkcyjnego w C++;
+- poznać i przećwiczyć elementy języka C++, pozwalające na realizację
+  paradygmatu programowania funkcyjnego: funkcje lambda, wskaźniki do funkcji,
+  nagłówek <functional>;
+- poznać zawartość standardowej przestrzeni nazw std::ranges oraz przećwiczyć
+  tworzenie kontenera będącego zakresem (ang. range), czyli spełniającego
+  stosowne koncepty z std::ranges;
+- ugruntować umiejętności programowania w C++ poznane przy rozwiązywaniu
+  poprzednich zadań.
+
+== Ocena z testów automatycznych: 0 - 6 pkt. ==
+
+Po jednym punkcie za przejście wszystkich testów z grup od 1xx do 6xx.
+
+== Ocena za jakość kodu: 0 - 4 pkt. ==
+
+Zaczynamy od 4 punktów i odejmujemy po jednym za każdą usterkę (przy czym ocena
+nie może być ujemna):
+- gorliwa modyfikacja elementów kontenera (o ile nie zostało to wykryte przez testy);
+- złożoność metod klasy tri_list większą niż O(1) (względem liczby elementów w kontenerze);
+- niezgodność zawartości repozytorium ze specyfikacją zadania;
+- ostrzeżenia wypisywane przez kompilator;
+- nieodpowiedni styl, brak lub ubogie komentarze, powtórzenia kodu;
+- wszelkie inne usterki, które były wytykane w poprzednich zadaniach.

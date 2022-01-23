@@ -1,0 +1,153 @@
+= Zadanie 7, programowanie funkcyjne w C++ =
+
+Biblioteka STL oferuje wiele standardowych kontenerów. Cechą wspólną tych
+kontenerów jest to, że pozwalają one na przechowywanie wartości tylko jednego
+typu. Inną cechą jest gorliwe wyliczanie wszystkich operacji wykonywanych na
+tych kontenerach. W tym zadaniu przyjrzymy się, jak mógłby wyglądać kontener nie
+mający takich ograniczeń. Jednocześnie wykorzystamy także ostatnią z głównych
+nowości w C++20: bibliotekę ranges.
+
+= Wartościowanie gorliwe a leniwe =
+
+Gdy wykonywany jest kod danego programu, kolejność wykonywania operacji w nim
+zawartych może być zdefiniowana na różne sposoby. Dwa najpopularniejsze z nich
+to wartościowanie gorliwe oraz leniwe.
+
+Wartościowanie gorliwe jest podejściem stosowanym w większości konstrukcji wielu
+języków programowania, w tym także w C++. Polega ono na wykonywaniu operacji
+dokładnie w takiej kolejności, w jakiej zostały one wyspecyfikowane przez
+programistę, nawet jeśli ich wynik nie jest potrzebny.
+
+Przeciwieństwem jest wartościowanie leniwe – instrukcje programu są wykonywane
+dopiero wtedy i tylko wtedy, gdy ich wartość jest już potrzebna. W języku C++
+przykładem konstrukcji z takim wartościowaniem są operatory logiczne && oraz ||.
+Wykonują one swoją prawą gałąź tylko wtedy, gdy na podstawie wyniku lewej gałęzi
+nie da się wyznaczyć wyniku całej operacji. Innym przykładem wartościowania
+leniwego w C++ jest operator warunkowy ?:.
+
+W gorliwym języku można jednak symulować wartościowanie leniwe poprzez
+odpowiednie struktury danych, które często wykorzystują konstrukcje funkcyjne.
+To właśnie będziemy robić w tym zadaniu.
+
+W C++20 biblioteka std::ranges dodaje do języka więcej leniwości w postaci
+widoków. Pozwalają one na składanie ze sobą wielu modyfikacji zakresów
+wykonywanych dopiero w momencie dostępu do elementów widoku. Więcej informacji
+na ten temat można znaleźć w czytankach.
+
+= Typy wariantowe =
+
+Wiele języków programowania pozwala na typy, których wartościami mogą być
+wartości wielu różnych, określonych, typów. Takie typy po angielsku nazywa się
+sum types, ze względu na to, że zbiór wartości typu wariantowego jest sumą
+zbiorów wartości poszczególnych typów, z których jest on zbudowany.
+
+Typy wariantowe powinny pozwalać na dwie podstawowe operacje:
+
+- włożenie:
+  konstrukcja wartości typu wariantowego z wartości typu podrzędnego,
+- dopasowanie wzorca:
+  wykonanie różnych akcji w zależności od faktycznego typu
+  podrzędnego danej wartości.
+
+W C++ (a także i w C) dostępny jest podstawowy typ wariantowy znany pod nazwą
+union. Ma on jednak pewną poważną wadę: nie udostępnia żadnych mechanizmów
+pozwalających na stwierdzenie, który z typów podrzędnych jest aktywny.
+
+Wymusza to na programiście nie tylko każdorazową implementację operacji
+dopasowania wzorca, ale też dyscypliny, by uniknąć korzystania z wartości
+innego typu niż aktywny (w celu uniknięcia niezdefiniowanego zachowania).
+
+W C++17 z pomocą przychodzi std::variant, będący już silnie otypowanym typem
+wariantowym. Niestety, mimo trwających prac nad standaryzacją, w C++ wciąż nie
+ma mechanizmu dopasowania wzorca na poziomie języka, więc ta operacja musi wciąż
+się odbywać przy użyciu szablonów. Na nasze szczęście jednak C++20 przynosi
+zmiany w funkcjach lambda znacznie ułatwiające korzystanie z tej operacji, co
+okaże się przydatne przy implementacji tego zadania.
+
+= Treść zadania =
+
+Uwaga: Koncept modifier, który jest wymieniony w treści zadania, oraz koncept
+is_tri_list_correct, który powinna spełniać implementacja, znajdują się w pliku
+tri_list_concepts.h.
+
+Celem zadania jest zaimplementowanie szablonu klasy tri_list:
+
+template <typename T1, typename T2, typename T3>
+class tri_list;
+
+Powinna ona udostępniać następującą funkcjonalność:
+
+- domyślny konstruktor tworzący pustą listę;
+
+- konstruktor przyjmujący obiekt typu std::initializer_list;
+
+- szablon metody
+  template <typename T> void push_back<T>(const T& t),
+  która dodaje na koniec listy element t;
+
+- szablon metody
+  template <typename T, modifier<T> F> void modify_only<T>(F m = F{}),
+  która leniwie modyfikuje wszystkie elementy typu T za pomocą modyfikatora m,
+  włącznie z tymi, które zostaną dodane do kontenera później;
+
+- szablon metody
+  template <typename T> void reset(),
+  która niweluje działanie wszystkich dotychczasowych modyfikacji elementów
+  typu T;
+
+- szablon metody
+  template <typename T> auto range_over(),
+  która udostępnia widok na te elementy listy, które są typu T;
+
+- metody begin() oraz end() zaimplementowane tak, by klasa spełniała
+  koncept std::viewable_range.
+
+Oprócz tego należy zdefiniować poniższe dwa symbole:
+
+- identity:
+  wywołane z wartością dowolnego typu powinno obliczać się do tej samej
+  wartości, powinno spełniać koncept modifier;
+
+- compose:
+  wywołane z dwoma argumentami spełniającymi modifier<T> dla pewnego T powinno
+  potraktować obie wartości jak funkcje i zwrócić funkcję będącą ich złożeniem
+  (w tej samej kolejności, co matematyczny operator ∘), spełniającą modifier<T>
+  dla tego samego T. W szczególności nie jest wymagane, by dało się wywołać
+  compose z argumentami, które takiego warunku nie spełniają.
+
+Ponadto:
+- złożoność czasowa wszystkich metod klasy tri_list powinna być O(1);
+- próba skompilowania któregokolwiek z szablonów metod z argumentem niebędącym
+  jednym z (lub będącym więcej niż jednym z) T1, T2, T3 powinna zakończyć się
+  błędem.
+
+= Przykład użycia =
+
+Przykład wykorzystania szablonu tri_list znajduje się w pliku
+tri_list_example.cc. Wykonanie tego przykładu powinno spowodować
+wypisanie na standardowe wyjście:
+
+0.858407
+This, is, a, string,
+3
+12
+
+= Ustalenia techniczne =
+
+Ze względu na relatywnie nowe elementy języka wykorzystywane w zadaniu,
+należy używać kompilatora GCC w wersji 11.2 z następującymi opcjami:
+
+-std=c++20 -Wall -Wextra -O2
+
+Środowisko students (tak samo jak w zadaniu 6 z modułami):
+- kompilator: /opt/gcc-11.2/bin/g++-11.2
+- przy uruchamianiu należy ustawić: export LD_LIBRARY_PATH=/opt/gcc-11.2/lib64
+
+Rozwiązanie należy umieścić w pliku tri_list.h w repozytorium w katalogu
+
+grupaN/zadanie7/ab123456
+
+gdzie N jest numerem grupy, a ab123456 jest identyfikatorem osoby umieszczającej
+to rozwiązanie. Katalog z rozwiązaniem nie powinien zawierać innych plików. Nie
+wolno umieszczać w repozytorium plików dużych, binarnych, tymczasowych (np. *.o)
+ani innych zbędnych.
