@@ -100,6 +100,8 @@ int main() {
 
     l4.reset<int>();
 
+    assert(std::get<int>(*++std::begin(l4)) == 0);
+
     auto view_copy = l4.range_over<int>();
 
     assert(*std::ranges::begin(view_copy) == 0);
