@@ -23,37 +23,48 @@ concept OneOf =
 template <typename T1, typename T2, typename T3>
 class tri_list : public std::ranges::view_interface<tri_list<T1, T2, T3>> {
   using elt_t = std::variant<T1, T2, T3>;
+
+  template <typename T>
+  using mod_t = std::function<T(const T&)>;
+
+  template <typename T>
+  using mods_t = std::vector<mod_t<T>>;
+
   std::vector<elt_t> buffer;
 
-  std::vector<std::function<T1(T1)>> modifiers_t1;
-  std::vector<std::function<T2(T2)>> modifiers_t2;
-  std::vector<std::function<T3(T3)>> modifiers_t3;
+  // a) istotna decyzja projektowa: nie bedziemy uzywac tutaj funkcji compose
+  // i sprytnie komponowac kolejnych modyfikacji - to powoduje duzo alokacji
+  // zamiast tego bedziemy trzymac wektory tych modyfikacji
+  // (na ok0_example.cc daje to 31 alokacji, a to mniej niż 4 miliony)
+  // b) uzywamy tupli, zeby moc potem uzyc std::get<T>(tuple), co
+  // jest zdecydowanie najładniejszym sposobem na wyciągnięcie zmiennej po typie
+  std::tuple<mods_t<T1>, mods_t<T2>, mods_t<T3>> mods_containers;
 
+  // zwroc kontener trzymający kolejne modyfikacje dla typu T
   template <OneOf<T1, T2, T3> T>
-  const std::vector<std::function<T(T)>>& get_modifiers() const {
-    if constexpr (std::is_same<T, T1>::value) { return modifiers_t1; }
-    else if constexpr (std::is_same<T, T2>::value) { return modifiers_t2; }
-    else if constexpr (std::is_same<T, T3>::value) { return modifiers_t3; }
+  const std::vector<mod_t<T>>& get_modifiers() const {
+    return std::get<mods_t<T>>(mods_containers);
   }
 
+  // niestety zrobienie tego overloadu "sprytnie", tj. jakimś const-castem
+  // skutkuje u mnie segfaultem - nie jestem pewien jak to zrobić bez kopiowana kodu
   template <OneOf<T1, T2, T3> T>
-  std::vector<std::function<T(T)>>& get_modifiers() {
-    if constexpr (std::is_same<T, T1>::value) { return modifiers_t1; }
-    else if constexpr (std::is_same<T, T2>::value) { return modifiers_t2; }
-    else if constexpr (std::is_same<T, T3>::value) { return modifiers_t3; }
+  std::vector<mod_t<T>>& get_modifiers() {
+    return std::get<mods_t<T>>(mods_containers);
   }
 
   template <OneOf<T1, T2, T3> T>
   T apply_modifiers(T t) const {
-    const std::vector<std::function<T(T)>>& modifiers = get_modifiers<T>();
+    const std::vector<mod_t<T>>& modifiers = get_modifiers<T>();
     return std::accumulate(
       modifiers.begin(),
       modifiers.end(),
       t,
-      [](T t, std::function<T(T)> f) { return std::invoke(f, t); }
+      [](T t, mod_t<T> f) { return std::invoke(f, t); }
     );
   }
 
+  // ta klase bym wolal zdefiniowac na zewnatrz, ale nie umiem
   class iterator {
     using base_iterator = typename decltype(buffer)::const_iterator;
     const tri_list* tri_lst;
