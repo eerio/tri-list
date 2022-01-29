@@ -8,25 +8,18 @@
 
 #include "tri_list_concepts.h"
 
+// overloaded pattern; source: std::vist entry @ cppreference
 template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
 
-
+// ensure type T is exactly one of T1, T2, T3
 template <typename T, typename T1, typename T2, typename T3>
 concept OneOf =
   (std::same_as<T, T1> && !std::same_as<T, T2> && !std::same_as<T, T3>)
   || (!std::same_as<T, T1> && std::same_as<T, T2> && !std::same_as<T, T3>)
   || (!std::same_as<T, T1> && !std::same_as<T, T2> && std::same_as<T, T3>);
 
-template <typename T>
-T identity(T x) { return x; }
-static_assert(modifier<decltype(identity<int>), int>);
-
-template <typename T, modifier<T> F, modifier<T> G>
-auto compose(F f, G g) {
-  return [f, g](auto t){ return f(g(std::forward<decltype(t)>(t))); };
-}
-
+// główna klasa zadania
 template <typename T1, typename T2, typename T3>
 class tri_list : public std::ranges::view_interface<tri_list<T1, T2, T3>> {
   using elt_t = std::variant<T1, T2, T3>;
@@ -52,17 +45,13 @@ class tri_list : public std::ranges::view_interface<tri_list<T1, T2, T3>> {
 
   template <OneOf<T1, T2, T3> T>
   T apply_modifiers(T t) const {
-    const auto& modifiers = get_modifiers<T>();
-    for (const auto& mod : modifiers) {
-      t = mod(t);
-    }
-    return t;
-    // return std::accumulate(
-    //   modifiers.begin(),
-    //   modifiers.end(),
-    //   t,
-    //   [](auto f, T t) { return std::invoke(f, t); }
-    // );
+    const std::vector<std::function<T(T)>>& modifiers = get_modifiers<T>();
+    return std::accumulate(
+      modifiers.begin(),
+      modifiers.end(),
+      t,
+      [](T t, std::function<T(T)> f) { return std::invoke(f, t); }
+    );
   }
 
   class iterator {
@@ -75,16 +64,15 @@ class tri_list : public std::ranges::view_interface<tri_list<T1, T2, T3>> {
     using difference_type = typename base_iterator::difference_type;
     using value_type = elt_t;
     using pointer = elt_t*;
-    using reference = elt_t;
+    using reference = elt_t&;
     
     iterator() = default;
     explicit iterator(const tri_list* tri_lst, const base_iterator& other) 
       : tri_lst(tri_lst), base(other) {}
 
     elt_t operator*() const {
-      // return tri_lst->apply_modifiers(*base);
-      // using t = decltype(*base);
       return std::visit(
+        // ja bym wolal tak, ale to nie dziala
         // tri_lst->apply_modifiers,
         overloaded {
           [&](T1 t) -> elt_t {return tri_lst->apply_modifiers(t); },
@@ -107,29 +95,26 @@ public:
   tri_list(std::initializer_list<elt_t> elements) : buffer(elements) {};
   
   template <OneOf<T1, T2, T3> T>
-  // template <typename T>
   void push_back(const T& t) { buffer.push_back(t); }
   
   template <OneOf<T1, T2, T3> T, modifier<T> F>
-  // template <typename T, modifier<T> F>
-  void modify_only([[maybe_unused]] F m = F {}) {
+  void modify_only(F m = F {}) {
     get_modifiers<T>().push_back(m);
   }
 
   template <OneOf<T1, T2, T3> T>
-  // template <typename T>
   void reset() {
       get_modifiers<T>().clear();
   }
   
   template <OneOf<T1, T2, T3> T>
-  // template <typename T>
   auto range_over() const {
     return buffer
       | std::ranges::views::filter(std::holds_alternative<T, T1, T2, T3>)
-      | std::ranges::views::transform([&](auto x){ return apply_modifiers(std::get<T>(x));});
-      // | std::ranges::views::transform(std::get<T, T1, T2, T3>)
-      // | std::ranges::views::transform(apply_modifiers);
+      // ja bym wolal tak, ale to nie dziala
+      // | std::ranges::views::transform(std::get<T>)
+      | std::ranges::views::transform([](elt_t x){ return std::get<T>(x); })
+      | std::ranges::views::transform([&](T x){ return apply_modifiers<T>(x); });
   }
 
   iterator begin() const { return iterator(this, buffer.begin()); };
@@ -137,6 +122,15 @@ public:
   iterator end() const { return iterator(this, buffer.end()); }
   iterator end() { return iterator(this, buffer.end()); }
 };
+
+template <typename T>
+T identity(T x) { return x; }
+static_assert(modifier<decltype(identity<int>), int>);
+
+template <typename T, modifier<T> F, modifier<T> G>
+auto compose(const F& f, const G& g) {
+  return [f, g](T t){ return f(g(std::forward<T>(t))); };
+}
 
 
 #endif // TRI_LIST_H
