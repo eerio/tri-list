@@ -135,13 +135,12 @@ public:
 };
 
 template <typename T>
-T identity(T x) { return x; }
+inline T identity(T x) { return x; }
 static_assert(modifier<decltype(identity<int>), int>);
 
 template <typename T, modifier<T> F, modifier<T> G>
-auto compose(const F& f, const G& g) {
+inline auto compose(const F& f, const G& g) {
   return [f, g](T t){ return f(g(std::forward<T>(t))); };
 }
-
 
 #endif // TRI_LIST_H
