@@ -8,10 +8,6 @@
 
 #include "tri_list_concepts.h"
 
-// overloaded pattern; source: std::vist entry @ cppreference
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
-template<class... Ts> overloaded(Ts...) -> overloaded<Ts...>;
-
 // ensure type T is exactly one of T1, T2, T3
 template <typename T, typename T1, typename T2, typename T3>
 concept OneOf =
@@ -83,13 +79,7 @@ class tri_list : public std::ranges::view_interface<tri_list<T1, T2, T3>> {
 
     elt_t operator*() const {
       return std::visit(
-        // ja bym wolal tak, ale to nie dziala
-        // tri_lst->apply_modifiers,
-        overloaded {
-          [&](T1 t) -> elt_t {return tri_lst->apply_modifiers(t); },
-          [&](T2 t) -> elt_t {return tri_lst->apply_modifiers(t); },
-          [&](T3 t) -> elt_t {return tri_lst->apply_modifiers(t); }
-        },
+        [this](auto x) -> elt_t { return tri_lst->apply_modifiers(x); },
         *base
       );
     }
@@ -139,8 +129,8 @@ inline T identity(T x) { return x; }
 static_assert(modifier<decltype(identity<int>), int>);
 
 template <typename T, modifier<T> F, modifier<T> G>
-inline auto compose(const F& f, const G& g) {
-  return [f, g](T t){ return f(g(std::forward<T>(t))); };
+inline auto compose(F f, G g) {
+  return [f, g](T t) mutable { return f(g(std::forward<T>(t))); };
 }
 
 #endif // TRI_LIST_H
